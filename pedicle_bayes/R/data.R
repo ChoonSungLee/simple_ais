@@ -12,6 +12,7 @@ library(here)
 # here() 경로 확인 (pedicle_bayes/ 가 나와야 함)
 cat("=== 프로젝트 루트 경로 ===\n")
 cat(here(), "\n\n")
+# 예상 출력: /Users/ChoonSungLee/Library/CloudStorage/Dropbox/Claude_Bayesian_conversion/simple_ais
 
 # ----------------------------------------------------------
 # 1. 엑셀 파일 로드
@@ -50,34 +51,25 @@ clean_df <- raw_df %>%
 # ----------------------------------------------------------
 # 3. sPT/non-sPT 그룹 정보 합치기
 # ----------------------------------------------------------
-# ★ 아래 'structural_col'을 엑셀의 실제 컬럼명으로 수정하세요.
-# 일단 그대로 실행하면 오류 메시지와 함께 전체 컬럼 목록이
-# 출력되므로 그 중에서 찾으시면 됩니다.
-structural_col <- "structural"
+# A열의 'Gr' 컬럼: 1 = non-sPT, 2 = sPT (structural PT curve)
 
-if (structural_col %in% colnames(raw_df)) {
+# is_structural 관련 컬럼 모두 제거 (중복 실행 방지)
+clean_df <- clean_df %>%
+  select(-starts_with("is_structural"))
 
-  group_df <- raw_df %>%
-    select(ID, all_of(structural_col)) %>%
-    rename(is_structural = all_of(structural_col)) %>%
-    mutate(is_structural = as.integer(is_structural))
-
-  clean_df <- clean_df %>%
-    left_join(group_df, by = "ID")
-
-  cat("그룹 정보 합치기 완료\n")
-
-} else {
-
-  cat("사용 가능한 컬럼 목록:\n")
-  print(colnames(raw_df))
-  stop(paste(
-    "\n'", structural_col, "' 컬럼을 찾을 수 없습니다.\n",
-    "위 목록에서 sPT 여부를 나타내는 컬럼명을 확인하고\n",
-    "structural_col <- '실제컬럼명' 으로 수정하세요."
+group_df <- raw_df %>%
+  select(ID, Gr) %>%
+  rename(is_structural = Gr) %>%
+  mutate(is_structural = case_when(
+    is_structural == 2 ~ 1L,   # 2 → sPT (structural)
+    is_structural == 1 ~ 0L,   # 1 → non-sPT
+    TRUE               ~ NA_integer_
   ))
 
-}
+clean_df <- clean_df %>%
+  left_join(group_df, by = "ID")
+
+cat("그룹 정보 합치기 완료\n")
 
 # 그룹 분포 확인
 cat("\n=== 환자별 그룹 분포 ===\n")
@@ -87,7 +79,7 @@ clean_df %>%
   mutate(Group = ifelse(is_structural == 1, "sPT", "non-sPT")) %>%
   print()
 
-# ----------------------------------------------------------
+ # ----------------------------------------------------------
 # 4. Stan 데이터 리스트 생성
 # ----------------------------------------------------------
 stan_data <- list(
