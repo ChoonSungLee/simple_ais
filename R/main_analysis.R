@@ -42,6 +42,9 @@ fit <- stan(
 )
 
 # 결과 저장 (재실행 없이 불러올 수 있도록)
+# output 폴더가 없으면 자동 생성
+dir.create(here("output"), showWarnings = FALSE, recursive = TRUE)
+
 saveRDS(fit, here("output", "fit_simple.rds"))
 cat("fit 저장 완료 → output/fit_simple.rds\n\n")
 
