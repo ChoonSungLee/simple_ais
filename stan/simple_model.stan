@@ -37,6 +37,7 @@ model {
 }
 
 generated quantities {
+
   // 1. 사후예측 (모델 검증용)
   array[N] real y_rep;
   for (n in 1:N) {
@@ -46,7 +47,12 @@ generated quantities {
     y_rep[n] = normal_rng(mu_group, sigma);
   }
 
-  // 2. 그룹별 2mm 미만 확률
+  // 2. Bayesian p값 (모델 적합성 평가)
+  real mean_y_rep = mean(y_rep);
+  real mean_width = mean(to_vector(width));
+  int p_val       = (mean_y_rep > mean_width);
+
+  // 3. 그룹별 2mm 미만 확률
   matrix[6, 2] prob_narrow_sPT;
   matrix[6, 2] prob_narrow_nonsPT;
   for (k in 1:6) {
@@ -56,7 +62,7 @@ generated quantities {
     }
   }
 
-  // 3. 그룹 간 차이 (sPT - non-sPT)
+  // 4. 그룹 간 차이 (sPT - non-sPT)
   // 음수 = sPT가 더 좁음 (논문의 핵심 발견)
   matrix[6, 2] mu_diff;
   for (k in 1:6) {
@@ -65,7 +71,7 @@ generated quantities {
     }
   }
 
-  // 4. LOO-CV용 log_lik
+  // 5. LOO-CV용 log_lik
   vector[N] log_lik;
   for (n in 1:N) {
     real mu_group = (structural[n] == 1)
@@ -73,4 +79,5 @@ generated quantities {
       : mu_nonsPT[vertebra_level_numeric[n], side_numeric[n]];
     log_lik[n] = normal_lpdf(width[n] | mu_group, sigma);
   }
+
 }
