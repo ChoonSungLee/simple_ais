@@ -1,0 +1,56 @@
+source("~/Library/CloudStorage/Dropbox/Claude_Bayesian_conversion/simple_ais/R/data.R")
+source("~/Library/CloudStorage/Dropbox/Claude_Bayesian_conversion/simple_ais/R/data.R")
+library(rstan)
+library(bayesplot)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(here)
+options(mc.cores = parallel::detectCores())
+rstan_options(auto_write = TRUE)
+# ----------------------------------------------------------
+# 1. 레시피 호출 (데이터 준비)
+# ----------------------------------------------------------
+source(here("R", "data.R"))
+# ----------------------------------------------------------
+# 2. Stan 모델 실행
+# ----------------------------------------------------------
+stan_file <- here("stan", "simple_model.stan")
+if (!file.exists(stan_file)) {
+stop(paste("Stan 파일을 찾을 수 없습니다.\n확인 경로:", stan_file))
+}
+cat("Stan 실행 중 (약 5~15분 소요)...\n\n")
+fit <- stan(
+file   = stan_file,
+data   = stan_data,
+iter   = 2000,
+chains = 4,
+seed   = 42
+)
+# 결과 저장 (재실행 없이 불러올 수 있도록)
+saveRDS(fit, here("output", "fit_simple.rds"))
+# 결과 저장 (재실행 없이 불러올 수 있도록)
+# output 폴더가 없으면 자동 생성
+dir.create(here("output"), showWarnings = FALSE, recursive = TRUE)
+saveRDS(fit, here("output", "fit_simple.rds"))
+cat("fit 저장 완료 → output/fit_simple.rds\n\n")
+# ----------------------------------------------------------
+# 3. 기본 결과 확인 (Gemini 버전과 동일)
+# ----------------------------------------------------------
+summary_fit <- summary(fit)$summary
+# mu_sPT만 골라내기
+mu_sPT_summary <- summary_fit[grep("mu_sPT\\[", rownames(summary_fit)), ]
+sorted_sPT <- mu_sPT_summary[order(mu_sPT_summary[, "mean"]),
+c("mean", "sd", "2.5%", "97.5%", "Rhat")]
+cat("=== sPT 그룹 mu 결과 (오름차순) ===\n")
+print(round(sorted_sPT, 3))
+# mu_nonsPT만 골라내기
+mu_nsPT_summary <- summary_fit[grep("mu_nonsPT\\[", rownames(summary_fit)), ]
+sorted_nsPT <- mu_nsPT_summary[order(mu_nsPT_summary[, "mean"]),
+c("mean", "sd", "2.5%", "97.5%", "Rhat")]
+cat("\n=== non-sPT 그룹 mu 결과 (오름차순) ===\n")
+print(round(sorted_nsPT, 3))
+# mu_diff 확인 (sPT - non-sPT, 음수 = sPT가 더 좁음)
+mu_diff_summary <- summary_fit[grep("mu_diff\\[", rownames(summary_fit)), ]
+cat("\n=== mu_diff (sPT - non-sPT) — 음수 = sPT가 더 좁음 ===\n")
+print(round(mu_diff_summary[, c("mean", "sd", "2.5%", "97.5%")], 3))
