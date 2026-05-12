@@ -74,6 +74,60 @@ mu_diff_summary <- summary_fit[grep("mu_diff\\[", rownames(summary_fit)), ]
 cat("\n=== mu_diff (sPT - non-sPT) — 음수 = sPT가 더 좁음 ===\n")
 print(round(mu_diff_summary[, c("mean", "sd", "2.5%", "97.5%")], 3))
 
+# ============================================================
+# prob_narrow_sPT / prob_narrow_nonsPT 분석
+# (각 레벨×측면에서 폭이 2mm 미만일 사후 확률)
+# ============================================================
+
+# --- 1. summary_fit에서 추출 ---
+prob_narrow_sPT_summary    <- summary_fit[grep("prob_narrow_sPT\\[",    rownames(summary_fit)), ]
+prob_narrow_nonsPT_summary <- summary_fit[grep("prob_narrow_nonsPT\\[", rownames(summary_fit)), ]
+
+# --- 2. 행 이름을 "T1_Left" 형식으로 정리 ---
+level_labels <- paste0("T", 1:6)   # T1 ~ T6 (필요시 수정)
+side_labels  <- c("Left", "Right")
+
+row_labels <- paste0(
+  rep(level_labels, each = 2), "_",
+  rep(side_labels,  times = 6)
+)
+
+rownames(prob_narrow_sPT_summary)    <- row_labels
+rownames(prob_narrow_nonsPT_summary) <- row_labels
+
+# --- 3. 결과 출력 ---
+cat("\n=== prob_narrow_sPT (sPT 그룹: 폭 < 2mm 사후 확률) ===\n")
+print(round(prob_narrow_sPT_summary[, c("mean", "sd", "2.5%", "97.5%")], 3))
+
+cat("\n=== prob_narrow_nonsPT (non-sPT 그룹: 폭 < 2mm 사후 확률) ===\n")
+print(round(prob_narrow_nonsPT_summary[, c("mean", "sd", "2.5%", "97.5%")], 3))
+
+# --- 4. 두 그룹 나란히 비교 ---
+comparison_narrow <- data.frame(
+  Level_Side      = row_labels,
+  sPT_prob        = round(prob_narrow_sPT_summary[,    "mean"], 3),
+  nonsPT_prob     = round(prob_narrow_nonsPT_summary[, "mean"], 3),
+  diff_sPT_minus  = round(
+    prob_narrow_sPT_summary[, "mean"] - prob_narrow_nonsPT_summary[, "mean"], 3
+  )
+)
+
+cat("\n=== 2mm 미만 확률 비교 (sPT vs non-sPT, diff = sPT - non-sPT) ===\n")
+cat("※ diff > 0 이면 sPT 쪽이 좁을 위험이 더 높음\n")
+print(comparison_narrow)
+
+# --- 5. 임상적으로 주목할 조합 (sPT prob > 0.5 또는 diff > 0.1) ---
+cat("\n=== 주목 조합 (sPT 확률 > 0.5 또는 두 그룹 차이 > 0.1) ===\n")
+notable <- comparison_narrow[
+  comparison_narrow$sPT_prob > 0.5 | comparison_narrow$diff_sPT_minus > 0.1, ]
+
+if (nrow(notable) > 0) {
+  print(notable)
+} else {
+  cat("해당 조건을 만족하는 조합 없음\n")
+}
+
+
 # ----------------------------------------------------------
 # 4. 시각화
 # ----------------------------------------------------------
