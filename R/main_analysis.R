@@ -87,9 +87,10 @@ prob_narrow_nonsPT_summary <- summary_fit[grep("prob_narrow_nonsPT\\[", rownames
 level_labels <- paste0("T", 1:6)   # T1 ~ T6 (필요시 수정)
 side_labels  <- c("Left", "Right")
 
+# Stan 열우선 순서에 맞게: T1_Left, T2_Left, ..., T6_Left, T1_Right, ..., T6_Right
 row_labels <- paste0(
-  rep(level_labels, each = 2), "_",
-  rep(side_labels,  times = 6)
+  rep(level_labels, times = 2), "_",   # T1~T6 반복 2번
+  rep(side_labels,  each  = 6)         # Left 6개, Right 6개
 )
 
 rownames(prob_narrow_sPT_summary)    <- row_labels
@@ -185,7 +186,7 @@ p_mu_compare <- ggplot(
   theme(legend.position = "bottom")
 
 ggsave(here("output", "mu_compare_concave.png"),
-       p_mu_compare, width = 9, height = 6, dpi = 300)
+       p_mu_compare, width = 9, height = 7, dpi = 300)
 cat("그래프 저장 → output/mu_compare_concave.png\n")
 
 ## (B) mu_diff 사후분포 (Concave, sPT - non-sPT)
