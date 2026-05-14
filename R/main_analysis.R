@@ -7,6 +7,8 @@
 #   - 그룹별 P(width < 2mm) 히트맵 추가
 # ============================================================
 
+install.packages("patchwork")
+
 library(rstan)
 library(bayesplot)
 library(ggplot2)
@@ -189,6 +191,97 @@ ggsave(here("output", "mu_compare_concave.png"),
        p_mu_compare, width = 9, height = 7, dpi = 300)
 cat("그래프 저장 → output/mu_compare_concave.png\n")
 
+
+## (A-2) sPT vs non-sPT Convex μ 비교 그래프
+mu_plot_data_convex <- data.frame()
+for (l in 1:6) {
+  for (grp in c("sPT", "nonsPT")) {
+    col  <- paste0("mu_", grp, "[", l, ",", CONVEX, "]")
+    samp <- posterior[, col]
+    mu_plot_data_convex <- rbind(mu_plot_data_convex, data.frame(
+      Level     = paste0("T", l),
+      Group     = grp,
+      Mean      = mean(samp),
+      CI_low    = quantile(samp, 0.025),
+      CI_high   = quantile(samp, 0.975),
+      CI80_low  = quantile(samp, 0.10),
+      CI80_high = quantile(samp, 0.90)
+    ))
+  }
+}
+
+p_mu_compare_convex <- ggplot(
+  mu_plot_data_convex,
+  aes(x = Level, y = Mean, color = Group, group = Group)
+) +
+  geom_line(linewidth = 1.2) +
+  geom_point(size = 3) +
+  geom_errorbar(aes(ymin = CI_low,   ymax = CI_high),
+                width = 0.15, linewidth = 0.7) +
+  geom_errorbar(aes(ymin = CI80_low, ymax = CI80_high),
+                width = 0, linewidth = 2, alpha = 0.4) +
+  geom_hline(yintercept = 2, linetype = "dashed",
+             color = "darkred", linewidth = 0.8) +
+  annotate("text", x = 0.7, y = 2.12,
+           label = "2 mm 안전 기준", color = "darkred",
+           size = 3.5, hjust = 0) +
+  scale_color_manual(
+    values = c("sPT" = "#D7191C", "nonsPT" = "#2C7BB6"),
+    labels = c("sPT" = "sPT (구조적)", "nonsPT" = "non-sPT (비구조적)")
+  ) +
+  labs(
+    title    = "Convex μ 사후분포: sPT vs non-sPT",
+    subtitle = "굵은 선: 80% CI / 가는 선: 95% CI",
+    x = "Vertebral Level", y = "Posterior Mean (mm)",
+    color = "Group"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(legend.position = "bottom")
+
+ggsave(here("output", "mu_compare_convex.png"),
+       p_mu_compare_convex, width = 9, height = 7, dpi = 300)
+cat("그래프 저장 → output/mu_compare_convex.png\n")
+
+
+library(patchwork)   # 없으면: install.packages("patchwork")
+
+## Side 컬럼 추가해서 두 데이터 합치기
+mu_plot_data_both <- bind_rows(
+  mu_plot_data        %>% mutate(Side = "Concave"),
+  mu_plot_data_convex %>% mutate(Side = "Convex")
+)
+
+p_both <- ggplot(
+  mu_plot_data_both,
+  aes(x = Level, y = Mean, color = Group, group = Group)
+) +
+  geom_line(linewidth = 1.2) +
+  geom_point(size = 3) +
+  geom_errorbar(aes(ymin = CI_low,   ymax = CI_high),
+                width = 0.15, linewidth = 0.7) +
+  geom_errorbar(aes(ymin = CI80_low, ymax = CI80_high),
+                width = 0, linewidth = 2, alpha = 0.4) +
+  geom_hline(yintercept = 2, linetype = "dashed",
+             color = "darkred", linewidth = 0.8) +
+  scale_color_manual(
+    values = c("sPT" = "#D7191C", "nonsPT" = "#2C7BB6"),
+    labels = c("sPT" = "sPT (구조적)", "nonsPT" = "non-sPT (비구조적)")
+  ) +
+  facet_wrap(~ Side, ncol = 2) +        # ← 핵심: 좌우 패널 분리
+  labs(
+    title    = "Concave vs Convex μ 사후분포: sPT vs non-sPT",
+    subtitle = "굵은 선: 80% CI / 가는 선: 95% CI  |  점선: 2mm 안전 기준",
+    x = "Vertebral Level", y = "Posterior Mean (mm)",
+    color = "Group"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(legend.position = "bottom")
+
+ggsave(here("output", "mu_compare_both_sides.png"),
+       p_both, width = 14, height = 7, dpi = 300)
+cat("그래프 저장 → output/mu_compare_both_sides.png\n")
+
+
 ## (B) mu_diff 사후분포 (Concave, sPT - non-sPT)
 diff_data <- data.frame()
 for (l in 1:6) {
@@ -233,6 +326,7 @@ ggsave(here("output", "mu_diff_concave.png"),
        p_diff, width = 8, height = 5, dpi = 300)
 cat("그래프 저장 → output/mu_diff_concave.png\n")
 
+
 ## (C) P(width < 2mm) 히트맵 — 그룹별
 prob_data <- data.frame()
 for (l in 1:6) {
@@ -270,6 +364,46 @@ p_heatmap <- prob_data %>%
 ggsave(here("output", "prob_heatmap.png"),
        p_heatmap, width = 9, height = 4, dpi = 300)
 cat("그래프 저장 → output/prob_heatmap.png\n")
+
+
+## (C-2) P(width < 2mm) 히트맵 — Convex side
+prob_data_convex <- data.frame()
+for (l in 1:6) {
+  for (grp in c("sPT", "nonsPT")) {
+    col  <- paste0("mu_", grp, "[", l, ",", CONVEX, "]")
+    samp <- posterior[, col]
+    prob_data_convex <- rbind(prob_data_convex, data.frame(
+      Level      = paste0("T", l),
+      Group      = grp,
+      P_below2mm = mean(samp < 2) * 100
+    ))
+  }
+}
+
+p_heatmap_convex <- prob_data_convex %>%
+  mutate(Group = factor(Group,
+                        levels = c("sPT", "nonsPT"),
+                        labels = c("sPT (구조적)", "non-sPT (비구조적)"))) %>%
+  ggplot(aes(x = Level, y = Group, fill = P_below2mm)) +
+  geom_tile(color = "white", linewidth = 0.8) +
+  geom_text(aes(label = paste0(round(P_below2mm, 0), "%")),
+            color = "white", fontface = "bold", size = 6) +
+  scale_fill_gradient2(
+    low = "#2166AC", mid = "#FEE090", high = "#D7191C",
+    midpoint = 50, limits = c(0, 100),
+    name = "P(μ < 2mm) %"
+  ) +
+  labs(
+    title    = "Convex μ < 2mm 사후확률 — 그룹별",
+    subtitle = "Concave 히트맵과 비교용",
+    x = "Vertebral Level", y = ""
+  ) +
+  theme_minimal(base_size = 13)
+
+ggsave(here("output", "prob_heatmap_convex.png"),
+       p_heatmap_convex, width = 9, height = 4, dpi = 300)
+cat("그래프 저장 → output/prob_heatmap_convex.png\n")
+
 
 ## (D) 전체 사후분포 밀도 그래프 (Gemini 버전 유지)
 target_names_sPT <- c(
